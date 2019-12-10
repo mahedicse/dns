@@ -132,7 +132,7 @@ options {
         statistics-file "/var/named/data/named_stats.txt";
         memstatistics-file "/var/named/data/named_mem_stats.txt";
         allow-query { any; };
- 	      allow-recursion { 192.168.1.0/24; };
+ 	allow-recursion { 192.168.1.0/24; };
         
 	 dnssec-enable yes;
         dnssec-validation yes;
@@ -175,6 +175,66 @@ include "/etc/named.rfc1912.zones";
 include "/etc/named.root.key";
 ```
 
+Zone files are contained in /var/named/  directory
 
+````bash
+[root@ns1 ~]# cd /var/named/
 
+[root@ns1 named]# ls -la
+
+drwxr-x---.  5 root  named 4096 Jul 24 17:04 .
+drwxr-xr-x. 23 root  root  4096 Jul 24 17:04 ..
+drwxrwx---.  2 named named    6 Jul  5 06:15 data
+drwxrwx---.  2 named named    6 Jul  5 06:15 dynamic
+-rw-r-----.  1 root  named 2281 May 22 05:51 named.ca
+-rw-r-----.  1 root  named  152 Dec 15  2009 named.empty
+-rw-r-----.  1 root  named  152 Jun 21  2007 named.localhost
+-rw-r-----.  1 root  named  168 Dec 15  2009 named.loopback
+drwxrwx---.  2 named named    6 Jul  5 06:15 slaves
+````
+
+Copy existing zone file for sample configuration with your given name in named.conf file like  the following:
+
+```
+[root@ns1 named]# cp named.localhost db.group-XY.ac.bd
+[root@ns1 named]# cp named.loopback db.1.168.192.in-addr.arpa
+```
+Now open your forward zone file changed the options like following:
+
+```
+[root@ns1 named]# vim db.group-XY.ac.bd
+```
+```
+$TTL 1D
+@       IN SOA  ns1.group-XY.ac.bd. root.group-XY.ac.bd. (
+                                        0       ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+        NS      ns1.group-XY.ac.bd.
+        A       192.168.1.5
+ns1			IN    	A       	192.168.1.5
+mail			IN    	A       	192.168.1.5
+group-XY.ac.bd.		IN	MX	10	mail.group-XY.ac.bd.
+www			IN   	CNAME   	ns1.group-XY.ac.bd.
+ftp			IN   	A       	192.168.1.50
+```
+Change in Reverse zone file changed the options like following:
+```
+[root@ns1 named]# vim db.1.168.192.in-addr.arpa
+```
+```
+$TTL 1D
+@       IN SOA  ns1.group-XY.ac.bd. root.group-XY.ac.bd. (
+                                        0       ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+        NS      ns1.bdren.net.bd.
+
+5      IN	PTR     ns1.group-XY.ac.bd.
+50	IN	PTR     ftp.group-XY.ac.bd.
+```
 
