@@ -160,7 +160,6 @@ zone "." IN {
 zone "group-XY.ac.bd" IN {
         type master;
         file "db.group-XY.ac.bd";
-        allow-transfer { none; };
 };
 
 // Adding Reverse zone
@@ -168,7 +167,6 @@ zone "group-XY.ac.bd" IN {
 zone "1.168.192.in-addr.arpa" IN {
         type master;
         file "db.1.168.192.in-addr.arpa";
-        allow-transfer { none; };
 };
 
 include "/etc/named.rfc1912.zones";
@@ -305,27 +303,8 @@ Address: 192.168.1.5
 
 At first, you have to install software, configure firewall, hostname, and FQDN like same as primary DNS server:
 
-Step-1: Changed in Primary DNS servers /etc/named.conf file in only zone section like following:
 
-```
-// Adding forward zone
-
-zone "group-XY.ac.bd" IN {
-        type master;
-        file "db.group-XY.ac.bd";
-        allow-transfer { 192.168.1.10; };
-};
-
-// Adding Reverse zone
-
-zone "1.168.192.in-addr.arpa" IN {
-        type master;
-        file "db.1.168.192.in-addr.arpa";
-        allow-transfer { 192.168.1.10; };
-};
-```
-
-Step-2: Changed /etc/named.conf in ns2 like following:
+Changed /etc/named.conf in ns2 like following:
 ```
 [root@ns2 ~]# vim /etc/named.conf
 ```
@@ -423,4 +402,185 @@ www.group-XY.ac.bd	canonical name = ns1.group-XY.ac.bd.
 Name:	ns1.group-XY.ac.bd
 Address: 192.168.1.10
 > 
+```
+
+### DNS Security Configuration
+
+**Configure Log**
+
+Create Log Directory:
+
+```
+# mkdir /var/log/named
+# chown named:named /var/log/named
+```
+
+Edit ``/etc/named.conf`` file in `loggong { }` options like following:
+
+```
+# vim /etc/named.conf
+```
+```
+// named.conf fragment
+
+logging {
+        channel normal_log {
+                file "/var/log/named/normal.log" versions 3 size 2m;
+                print-time yes;
+                print-severity yes;
+                print-category yes;
+        };
+
+        channel security_log { // streamed security log
+                file "/var/log/named/security.log" versions 3 size 2m;
+                severity info;
+                print-time yes;
+                print-severity yes;
+                print-category yes;
+        };
+		   
+        category default{
+                normal_log;
+        };
+
+        category security{
+                security_log;
+        };
+ 		   
+};
+```
+And restart the service and check the log files:
+```
+# service named restart
+```
+**Securing Zones Transfer:**
+
+Changed in Primary DNS servers /etc/named.conf file in only zone section like following:
+
+Deny All, Allow Selectively
+```
+options {
+....
+	allow-transfer {none;}; // no transfer by default
+....
+};
+
+```
+```
+
+// Adding forward zone
+
+zone "group-XY.ac.bd" IN {
+        type master;
+        file "db.group-XY.ac.bd";
+        allow-transfer { 192.168.1.10; };
+};
+
+// Adding Reverse zone
+
+zone "1.168.192.in-addr.arpa" IN {
+        type master;
+        file "db.1.168.192.in-addr.arpa";
+        allow-transfer { 192.168.1.10; };
+};
+```
+```
+[root@ns2 ~]# systemctl restart named.service
+
+[root@ns2 ~]# dig bdren.net @IP-of-NS2
+````
+**Authentication and Integrity of Zone Transfers**
+
+TSIG Configuration
+```
+# mkdir /var/named/keys
+# chown named.named /var/named/keys
+# cd /var/named/keys
+```
+```
+[root@ns1 keys]# dnssec-keygen -a hmac-md5 -b 128 -n host -C transfer-key
+Ktransfer-key.+157+62145
+```
+```
+[root@ns1 keys]# ls -la
+
+-rw------- 1 root  root   56 Apr 16 23:51 Ktransfer-key.+157+62145.key
+-rw------- 1 root  root   92 Apr 16 23:51 Ktransfer-key.+157+62145.private
+Viewing the file Ktransfer-key.+157+62145.private displays something like the following data:
+```
+```
+[root@ns1 keys]# cat Ktransfer-key.+157+62145.private
+
+Private-key-format: v1.2
+Algorithm: 157 (HMAC_MD5)
+Key: ndu1mcSlVRqGl3Qb35Clqw==
+Bits: AAA=
+```
+The preceding information contains four lines. The line beginning with the text Key: is the base64 (RFC 4648) encoded version of the shared-secret key. The next step is to edit this data into a key clause that will be used in the named.conf file, as shown here: 
+```
+key "transfer-key" {
+ 		algorithm hmac-md5;
+ 		secret ndu1mcSlVRqGl3Qb35Clqw==;
+};
+
+server 192.168.0.10 {
+        keys {"transfer-key";}; // name used in key clause
+};
+
+options {
+....
+directory "/var/named";
+dnssec-enable yes; // default and could be omitted
+....
+};
+
+// Adding forward zone
+zone "group-XY.ac.bd" IN {
+        type master;
+        file "db.group-XY.ac.bd";
+        // allow transfer only if key (TSIG) present
+        allow-transfer {key "transfer-key";};
+};
+```
+Test Configuration:
+```
+[root@ns1 keys]# dig @192.168.1.5 group-XY.ac.bd AXFR -k Ktransfer-key.+157+62145.key
+
+```
+
+**Configure in slave server:**
+
+```
+key "transfer-key" {
+ 		algorithm hmac-md5;
+ 		secret NJSXJmLkg2VCqnEXhp60wQ==;
+};
+
+
+server 192.168.1.5 {
+        keys {"transfer-key";}; // name used in key clause
+};
+```
+Ensure dnssec-enable yes;
+
+```
+options {
+....
+directory "/var/named";
+dnssec-enable yes; // default and could be omitted
+....
+};
+
+zone "group-XY.ac.bd" IN {
+        type slave;
+        masters { 192.168.1.5; };
+        file "slaves/slave.group-XY.ac.bd";
+};
+
+```
+```
+[root@ns2 ~]# systemctl restart named.service
+```
+```
+[root@ns2 ~]# dig group-XY.ac.bd @192.168.1.10
 ```
