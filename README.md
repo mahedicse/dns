@@ -1,8 +1,8 @@
 ## Installation and Configuration Domain Name System (DNS) Server in ContOS Linux
-For bangla tutorial visit: http://www.mahedi.me
+For Bangla tutorial visit: http://www.mahedi.me
 
 ## Domain Name System (DNS)
-A Domain Name System (DNS) is a distributed hierarchical system. It maintains a directory of domain names and translate them to Internet Protocol (IP) addresses and Internet Protocol (IP) to domain names or hostname. Inform which are the official Name Servers for a particular Domain.
+A Domain Name System (DNS) is a distributed hierarchical system. It maintains a directory of domain names and translates them to Internet Protocol (IP) addresses and Internet Protocol (IP) to domain names or hostname. Inform which are the official Name Servers for a particular Domain.
 
 ## DNS Components
 
@@ -24,11 +24,11 @@ A Domain Name System (DNS) is a distributed hierarchical system. It maintains a 
 ## Installation Bind Name Server
 
 **Primary Server:**
-Hostname: ns1.group-xy.ac.bd (Replace XY with your group number)
+Hostname: ns1.group-XY.ac.bd (Replace XY with your group number)
 IP: IP address of your server [192.168.0.5]
 
-**Seconday Server:**
-Hostname: ns2.group-xy.ac.bd (Replace XY with your group number)
+**Secondary Server:**
+Hostname: ns2.group-XY.ac.bd (Replace XY with your group number)
 IP: IP address of your server [192.168.0.10]
 
 ### Server Basic Configuration for IRS:
@@ -64,7 +64,7 @@ Update ``/etc/hosts`` file:
 
 :x
 ```
-**Check Hostnane configuration:**
+**Check Hostname configuration:**
 
 ```` bash 
 # hostname
@@ -97,7 +97,7 @@ firewall-cmd --reload
 firewall-cmd --zone=public --permanent --list-all
 ````
 **Install Bind**
-At first we check bind is already installed or not by the following command:
+At first, we check bind is already installed or not by the following command:
 
 ``root@ns1 ~]# rpm –qa|grep bind``
 
@@ -232,9 +232,195 @@ $TTL 1D
                                         1H      ; retry
                                         1W      ; expire
                                         3H )    ; minimum
-        NS      ns1.bdren.net.bd.
+        NS      ns1.group-XY.ac.bd.
+	A       192.168.1.5
 
-5      IN	PTR     ns1.group-XY.ac.bd.
+5	IN	PTR     ns1.group-XY.ac.bd.
 50	IN	PTR     ftp.group-XY.ac.bd.
 ```
+check your configuration and zone file using the following command:
+```
+[root@ns1 named]# named-checkconf -z /etc/named.conf
+zone localhost.localdomain/IN: loaded serial 0
+zone localhost/IN: loaded serial 0
+```
+```
+[root@ns1 named]# named-checkzone zone db.group-XY.ac.bd
+zone zone/IN: loaded serial 0
+OK
+```
+```
+[root@ns1 named]# named-checkzone zone db.110.168.192.in-addr.arpa
+zone zone/IN: loaded serial 0
+OK
+```
+If shown not OK then you need to check your zone file, it has something wrong in syntax, correct and checks again.  
 
+Changed group ownership: 
+```
+[root@ns1 named]# chgrp named db.group-XY.ac.bd
+[root@ns1 named]# chgrp named db.1.168.192.in-addr.arpa
+```
+To start service and ensure start this service at startup run following command:
+```
+[root@ns1 named]# systemctl restart  named.service 
+```
+```
+[root@ns1 named]# systemctl enable named.service
+ln -s '/usr/lib/systemd/system/named.service' '/etc/systemd/system/multi-user.target.wants/named.service'
+```
+Test from Linux clients you need to add name server address in /ete/reslov.conf file:
+
+````
+[root@ns1 named]# vim /ete/reslov.conf 
+search group-XY.ac.bd
+nameserver 192.168.1.5
+
+:x
+````
+Now time to check ypur configuration:
+
+```
+[root@ns1 named]# nslookup
+> group-XY.ac.bd
+Server:		192.168.1.5
+Address:	192.168.1.5#53
+
+Name:	group-XY.ac.bd
+Address: 192.168.1.5
+> www
+Server:		192.168.1.5
+Address:	192.168.1.5#53
+
+www.group-XY.ac.bd	canonical name = ns1.group-XY.ac.bd.
+
+Name:	ns1.group-XY.ac.bd
+Address: 192.168.1.5
+> 
+```
+
+**Yes! You have done it!!!**
+
+####Secondary DNS Server Configuration:
+
+At first, you have to install software, configure firewall, hostname, and FQDN like same as primary DNS server:
+
+Step-1: Changed in Primary DNS servers /etc/named.conf file in only zone section like following:
+
+```
+// Adding forward zone
+
+zone "group-XY.ac.bd" IN {
+        type master;
+        file "db.group-XY.ac.bd";
+        allow-transfer { 192.168.1.10; };
+};
+
+// Adding Reverse zone
+
+zone "1.168.192.in-addr.arpa" IN {
+        type master;
+        file "db.1.168.192.in-addr.arpa";
+        allow-transfer { 192.168.1.10; };
+};
+```
+
+Step-2: Changed /etc/named.conf in ns2 like following:
+```
+[root@ns2 ~]# vim /etc/named.conf
+```
+```
+options {
+        listen-on port 53 { 192.168.1.10; };
+    //    listen-on-v6 port 53 { ::1; };
+        directory       "/var/named";
+        dump-file       "/var/named/data/cache_dump.db";
+        statistics-file "/var/named/data/named_stats.txt";
+        memstatistics-file "/var/named/data/named_mem_stats.txt";
+ 	allow-query { any; };
+ 	allow-recursion { 192.168.1.0/24; };
+        
+	dnssec-enable yes;
+        dnssec-validation yes;
+        dnssec-lookaside auto;
+        /* Path to ISC DLV key */
+        bindkeys-file "/etc/named.iscdlv.key";
+        managed-keys-directory "/var/named/dynamic";
+};
+
+logging {
+        channel default_debug {
+                file "data/named.run";
+                severity dynamic;
+        };
+};
+
+zone "." IN {
+        type hint;
+        file "named.ca";
+};
+
+// Adding forward zone
+zone "group-XY.ac.bd" IN {
+	type slave;
+	masters { 192.168.1.5; };
+     	file "slaves/db.group-XY.ac.bd";
+};
+
+// Adding Reverse zone
+
+zone "1.168.192.in-addr.arpa" IN {
+        type slave;
+	masters { 192.168.1.5; };
+        file "slaves/db.1.168.192.in-addr.arpa";
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
+```
+
+To start service and ensure start this service at startup run following command:
+```
+[root@ns1 named]# systemctl restart  named.service 
+```
+```
+[root@ns1 named]# systemctl enable named.service
+ln -s '/usr/lib/systemd/system/named.service' '/etc/systemd/system/multi-user.target.wants/named.service'
+```
+Let Check the resource records file are transfered or not
+```
+[root@ns2 ~]# cd /var/named/slaves/
+
+[root@ns2 ~]# ls -la
+-rw-r-----   1 named  named  421 May 27 21:37 db.group-XY.ac.bd
+-rw-r-----.  1 named  named  292 May 13 13:58 db.110.168.192.in-addr.arpa
+
+```
+Yes it's transferred 
+
+Test from Linux clients you need to add name server address in /ete/reslov.conf file:
+```
+[root@ns2 named]# vim /ete/reslov.conf 
+
+nameserver 192.168.1.10
+
+:x
+```
+```
+[root@ns1 named]# nslookup
+> group-XY.ac.bd
+Server:		192.168.1.10
+Address:	192.168.1.10#53
+
+Name:	group-XY.ac.bd
+Address: 192.168.1.10
+> www
+Server:		192.168.1.10
+Address:	192.168.1.10#53
+
+www.group-XY.ac.bd	canonical name = ns1.group-XY.ac.bd.
+
+Name:	ns1.group-XY.ac.bd
+Address: 192.168.1.10
+> 
+```
