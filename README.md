@@ -25,15 +25,18 @@ A Domain Name System (DNS) is a distributed hierarchical system. It maintains a 
 
 **Primary Server:**
 Hostname: ns1.group-xy.ac.bd (Replace XY with your group number)
-IP: IP address of your server
+IP: IP address of your server [192.168.0.5]
 
 **Seconday Server:**
 Hostname: ns2.group-xy.ac.bd (Replace XY with your group number)
-IP: IP address of your server
+IP: IP address of your server [192.168.0.10]
 
 ### Server Basic Configuration for IRS:
 
-
+#### Add EPEL Repository 
+```
+# yum install epel-release
+```
 #### Update System:
 
 ```` bash
@@ -52,12 +55,23 @@ ns1.group-XY.ac.bd
 ````
 > **Note:** Please replace **XY** with your group ID like: **ns1.group-01.ac.bd** 
 
+Update ``/etc/hosts`` file:
+
+```
+[root@ns1 ~]# vim /etc/hosts
+127.0.0.1       localhost.localdomain		localhost
+192.168.0.5     ns1.group-XY.ac.bd			ns1
+
+:x
+```
 **Check Hostnane configuration:**
+
 ```` bash 
 # hostname
 
 ns1.group-XY.ac.bd
 ````
+
 ```` bash 
 # hostname -d
 group-XY.ac.bd
@@ -89,13 +103,78 @@ At first we check bind is already installed or not by the following command:
 
 If it's installed you'll found the following output:
 
-``bind-9.8.2-0.17.rc1.el6_4.6.x86_64
+``` 
+bind-9.8.2-0.17.rc1.el6_4.6.x86_64
 bind-libs-9.8.2-0.17.rc1.el6_4.6.x86_64
 bind-utils-9.8.2-0.17.rc1.el6_4.6.x86_64
-``
+```
 And if it's not installed then install by the following command:
 
-``[root@ns1 ~]# yum install –y bind bind-utils ``
+```[root@ns1 ~]# yum install –y bind bind-utils ```
+
+#### Configure Bind Name Server
+At first create a backup before change any in main configuration file:
+
+```
+[root@ns1 ~]# cd /etc/
+[root@ns1 etc]# cp named.conf named.conf.ori
+```
+And change the configuration like following:
+```
+[root@ns1 ~]# vim /etc/named.conf
+```
+```
+options {
+        listen-on port 53 { 192.168.1.5; };
+    //  listen-on-v6 port 53 { ::1; };
+        directory       "/var/named";
+        dump-file       "/var/named/data/cache_dump.db";
+        statistics-file "/var/named/data/named_stats.txt";
+        memstatistics-file "/var/named/data/named_mem_stats.txt";
+        allow-query { any; };
+ 	      allow-recursion { 192.168.1.0/24; };
+        
+	 dnssec-enable yes;
+        dnssec-validation yes;
+        /* Path to ISC DLV key */
+        bindkeys-file "/etc/named.iscdlv.key";
+        managed-keys-directory "/var/named/dynamic";
+        pid-file "/run/named/named.pid";
+        session-keyfile "/run/named/session.key";
+};
+
+logging {
+        channel default_debug {
+                file "data/named.run";
+                severity dynamic;
+        };
+};
+
+zone "." IN {
+        type hint;
+        file "named.ca";
+};
+
+// Adding forward zone
+
+zone "group-XY.ac.bd" IN {
+        type master;
+        file "db.group-XY.ac.bd";
+        allow-transfer { none; };
+};
+
+// Adding Reverse zone
+
+zone "1.168.192.in-addr.arpa" IN {
+        type master;
+        file "db.1.168.192.in-addr.arpa";
+        allow-transfer { none; };
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
+```
+
 
 
 
