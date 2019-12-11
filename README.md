@@ -99,7 +99,7 @@ firewall-cmd --zone=public --permanent --list-all
 **Install Bind**
 At first, we check bind is already installed or not by the following command:
 
-``root@ns1 ~]# rpm –qa|grep bind``
+``root@ns1 ~]# rpm -qa|grep bind``
 
 If it's installed you'll found the following output:
 
@@ -276,7 +276,7 @@ nameserver 192.168.1.5
 
 :x
 ````
-Now time to check ypur configuration:
+Now time to check your configuration:
 
 ```
 [root@ns1 named]# nslookup
@@ -299,7 +299,7 @@ Address: 192.168.1.5
 
 **Yes! You have done it!!!**
 
-####Secondary DNS Server Configuration:
+#### Secondary DNS Server Configuration:
 
 At first, you have to install software, configure firewall, hostname, and FQDN like same as primary DNS server:
 
