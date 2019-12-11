@@ -267,10 +267,10 @@ To start service and ensure start this service at startup run following command:
 [root@ns1 named]# systemctl enable named.service
 ln -s '/usr/lib/systemd/system/named.service' '/etc/systemd/system/multi-user.target.wants/named.service'
 ```
-Test from Linux clients you need to add name server address in /ete/reslov.conf file:
+Test from Linux clients you need to add name server address in /etc/resolv.conf file:
 
 ````
-[root@ns1 named]# vim /ete/reslov.conf 
+[root@ns1 named]# vim /etc/resolv.conf
 search group-XY.ac.bd
 nameserver 192.168.1.5
 
