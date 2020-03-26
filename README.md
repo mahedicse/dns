@@ -2,7 +2,7 @@
 description: 'For Bangla tutorial visit: http://www.mahedi.me'
 ---
 
-# Installation and Configuration Domain Name System \(DNS\) Server in CentOS Linux
+# Domain Name System \(DNS\) Server Configuration in CentOS Linux
 
 ### Domain Name System \(DNS\)
 
