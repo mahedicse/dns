@@ -2,37 +2,37 @@
 description: 'For Bangla tutorial visit: http://www.mahedi.me'
 ---
 
-# Domain Name System \(DNS\) Server Configuration in CentOS Linux
+# Installation and Configuration Domain Name System \(DNS\) Server in CentOS Linux
 
-### Domain Name System \(DNS\)
+## Domain Name System \(DNS\)
 
 A Domain Name System \(DNS\) is a distributed hierarchical system. It maintains a directory of domain names and translates them to Internet Protocol \(IP\) addresses and Internet Protocol \(IP\) to domain names or hostname. Inform which are the official Name Servers for a particular Domain.
 
-### DNS Components
+## DNS Components
 
 * **DNS resolver** — Resides on the client-side of the DNS. When a user sends a hostname request, the resolver sends a DNS query request to the name servers to request the hostname's IP address.
 * **Name servers** — Processes the DNS query requests received from the DNS resolver and returns the IP address to the resolver.
 * **Resource records** — Data elements that define the basic structure and content of the DNS.
 
-### DNS Server Types
+## DNS Server Types
 
 * **Root Server** - It's contains information of all the TLDs and TLD's server information like `.com .org .net .bd .edu .gov` etc. There are 13 root server with multiple instances of each server all over the world you'll find details from [http://root-servers.org](http://root-servers.org/)
 * **TLDs Server** - Contains all the domain's information in particular TLDs like Name Server of .bd hold all the .bd domains Name Server and IP addresses.
 * **Name Server** - Contains all the zones of domains and resource database for each domain.
 * **Recursion Server \(Resolver\)** - It does not contain any information for any domain but initiates a DNS query request to complete DNS address resolution. It maintains a cache database for fast serving.
 
-### Categories of DNS Server
+## Categories of DNS Server
 
 * **Primary Name Server** - It's an authoritative server of a domain and resource records update directly in the server.
 * **Secondary Name Server** - It's also an authoritative server of a domain but resource records are not updated directly in the server. It gets the update from a Primary Name Server of a particular domain.
 
-### Installation Bind Name Server
+## Installation Bind Name Server
 
 **Primary Server:** Hostname: ns1.group-XY.ac.bd \(Replace XY with your group number\) IP: IP address of your server \[192.168.0.5\]
 
 **Secondary Server:** Hostname: ns2.group-XY.ac.bd \(Replace XY with your group number\) IP: IP address of your server \[192.168.0.10\]
 
-#### Server Basic Configuration for IRS:
+### Server Basic Configuration for IRS:
 
 **Add EPEL Repository**
 
@@ -64,8 +64,8 @@ Update `/etc/hosts` file:
 
 ```text
 [root@ns1 ~]# vim /etc/hosts
-127.0.0.1       localhost.localdomain		localhost
-192.168.0.5     ns1.group-XY.ac.bd			ns1
+127.0.0.1       localhost.localdomain        localhost
+192.168.0.5     ns1.group-XY.ac.bd            ns1
 
 :x
 ```
@@ -147,9 +147,9 @@ options {
         statistics-file "/var/named/data/named_stats.txt";
         memstatistics-file "/var/named/data/named_mem_stats.txt";
         allow-query { any; };
- 	allow-recursion { 192.168.1.0/24; };
-        
-	 dnssec-enable yes;
+     allow-recursion { 192.168.1.0/24; };
+
+     dnssec-enable yes;
         dnssec-validation yes;
         /* Path to ISC DLV key */
         bindkeys-file "/etc/named.iscdlv.key";
@@ -229,11 +229,11 @@ $TTL 1D
                                         3H )    ; minimum
         NS      ns1.group-XY.ac.bd.
         A       192.168.1.5
-ns1			IN    	A       	192.168.1.5
-mail			IN    	A       	192.168.1.5
-group-XY.ac.bd.		IN	MX	10	mail.group-XY.ac.bd.
-www			IN   	CNAME   	ns1.group-XY.ac.bd.
-ftp			IN   	A       	192.168.1.50
+ns1            IN        A           192.168.1.5
+mail            IN        A           192.168.1.5
+group-XY.ac.bd.        IN    MX    10    mail.group-XY.ac.bd.
+www            IN       CNAME       ns1.group-XY.ac.bd.
+ftp            IN       A           192.168.1.50
 ```
 
 Change in Reverse zone file changed the options like following:
@@ -251,10 +251,10 @@ $TTL 1D
                                         1W      ; expire
                                         3H )    ; minimum
         NS      ns1.group-XY.ac.bd.
-	A       192.168.1.5
+    A       192.168.1.5
 
-5	IN	PTR     ns1.group-XY.ac.bd.
-50	IN	PTR     ftp.group-XY.ac.bd.
+5    IN    PTR     ns1.group-XY.ac.bd.
+50    IN    PTR     ftp.group-XY.ac.bd.
 ```
 
 check your configuration and zone file using the following command:
@@ -291,7 +291,7 @@ Changed group ownership:
 To start service and ensure start this service at startup run following command:
 
 ```text
-[root@ns1 named]# systemctl restart  named.service 
+[root@ns1 named]# systemctl restart  named.service
 ```
 
 ```text
@@ -314,27 +314,103 @@ Now time to check your configuration:
 ```text
 [root@ns1 named]# nslookup
 > group-XY.ac.bd
-Server:		192.168.1.5
-Address:	192.168.1.5#53
+Server:        192.168.1.5
+Address:    192.168.1.5#53
 
-Name:	group-XY.ac.bd
+Name:    group-XY.ac.bd
 Address: 192.168.1.5
 > www
-Server:		192.168.1.5
-Address:	192.168.1.5#53
+Server:        192.168.1.5
+Address:    192.168.1.5#53
 
-www.group-XY.ac.bd	canonical name = ns1.group-XY.ac.bd.
+www.group-XY.ac.bd    canonical name = ns1.group-XY.ac.bd.
 
-Name:	ns1.group-XY.ac.bd
+Name:    ns1.group-XY.ac.bd
 Address: 192.168.1.5
-> 
+>
 ```
 
 **Yes! You have done it!!!**
 
-### **Secondary DNS Server Configuration:**
+## **Secondary DNS Server Configuration:**
 
-At first, you have to install software, configure firewall, hostname, and FQDN like same as primary DNS server:
+**Change in Primary Server:**
+
+Add the following clause `allow-transfer { 192.168.1.10; };` in the zone 
+
+```text
+// Adding forward zone
+
+zone "mahedi.me" IN {
+ type master;
+ file "db.mahedi.me.for";
+ allow-transfer { 192.168.1.10; };
+};
+
+// Adding Reverse zone
+
+zone "1.168.192.in-addr.arpa" IN {
+ type master;
+ file "db.110.168.192.in-addr.arpa";
+ allow-transfer { 192.168.1.10; };
+
+};
+```
+
+And add the secondary server information in the db files 
+
+```text
+[root@ns1 named]# vim db.mahedi.me.for
+
+$TTL 1D
+@ IN SOA          ns1.mahedi.me.   root.mahedi.me. (
+                                                   0 ; serial
+                                                  1D ; refresh
+                                                  1H ; retry
+                                                  1W ; expire
+                                                3H ) ; minimum
+
+               NS  ns1.mahedi.me.
+               A   192.168.1.5
+               NS  ns2.mahedi.me.                
+               A   192.168.1.10
+ns1     IN     A   192.168.1.5
+ns1     IN     A   192.168.1.5
+mail    IN     A   192.168.1.5
+mahedi.me.      IN  MX    10    mail.mahedi.me.
+www     IN     CNAME     ns1.mahedi.me.
+ftp     IN     A         192.168.1.50
+
+ 
+
+:x
+```
+
+```text
+[root@ns1 named]# vim db.1.168.192.in-addr.arpa
+
+$TTL 1D
+
+@        IN      SOA       ns1.mahedi.me.      root.mahedi.me. (
+                                                       0 ; serial
+                                                      1D ; refresh
+                                                      1H ; retry
+                                                      1W ; expire
+                                                    3H ) ; minimum
+
+               NS  ns1.mahedi.me.                
+               A   192.168.1.5
+               NS  ns2.mahedi.me.                
+               A   192.168.1.10
+
+5          IN     PTR      ns1.mahedi.me.
+10         IN     PTR      ns2.mahedi.me.
+50         IN     PTR      ftp.mahedi.me.
+
+:x
+```
+
+At first, you have to install software, configure firewall, hostname, and FQDN like the same as primary DNS server:
 
 Changed /etc/named.conf in ns2 like following:
 
@@ -350,10 +426,10 @@ options {
         dump-file       "/var/named/data/cache_dump.db";
         statistics-file "/var/named/data/named_stats.txt";
         memstatistics-file "/var/named/data/named_mem_stats.txt";
- 	allow-query { any; };
- 	allow-recursion { 192.168.1.0/24; };
-        
-	dnssec-enable yes;
+     allow-query { any; };
+     allow-recursion { 192.168.1.0/24; };
+
+    dnssec-enable yes;
         dnssec-validation yes;
         dnssec-lookaside auto;
         /* Path to ISC DLV key */
@@ -375,16 +451,16 @@ zone "." IN {
 
 // Adding forward zone
 zone "group-XY.ac.bd" IN {
-	type slave;
-	masters { 192.168.1.5; };
-     	file "slaves/db.group-XY.ac.bd";
+    type slave;
+    masters { 192.168.1.5; };
+    file "slaves/db.group-XY.ac.bd";
 };
 
 // Adding Reverse zone
 
 zone "1.168.192.in-addr.arpa" IN {
         type slave;
-	masters { 192.168.1.5; };
+        masters { 192.168.1.5; };
         file "slaves/db.1.168.192.in-addr.arpa";
 };
 
@@ -392,10 +468,10 @@ include "/etc/named.rfc1912.zones";
 include "/etc/named.root.key";
 ```
 
-To start service and ensure start this service at startup run following command:
+To start service and ensure start this service at startup run the following command:
 
 ```text
-[root@ns1 named]# systemctl restart  named.service 
+[root@ns1 named]# systemctl restart  named.service
 ```
 
 ```text
@@ -411,7 +487,6 @@ Let Check the resource records file are transferred or not
 [root@ns2 ~]# ls -la
 -rw-r-----   1 named  named  421 May 27 21:37 db.group-XY.ac.bd
 -rw-r-----.  1 named  named  292 May 13 13:58 db.110.168.192.in-addr.arpa
-
 ```
 
 Yes it has transferred
@@ -429,23 +504,23 @@ nameserver 192.168.1.10
 ```text
 [root@ns1 named]# nslookup
 > group-XY.ac.bd
-Server:		192.168.1.10
-Address:	192.168.1.10#53
+Server:        192.168.1.10
+Address:    192.168.1.10#53
 
-Name:	group-XY.ac.bd
+Name:    group-XY.ac.bd
 Address: 192.168.1.10
 > www
-Server:		192.168.1.10
-Address:	192.168.1.10#53
+Server:        192.168.1.10
+Address:    192.168.1.10#53
 
-www.group-XY.ac.bd	canonical name = ns1.group-XY.ac.bd.
+www.group-XY.ac.bd    canonical name = ns1.group-XY.ac.bd.
 
-Name:	ns1.group-XY.ac.bd
+Name:    ns1.group-XY.ac.bd
 Address: 192.168.1.10
-> 
+>
 ```
 
-### DNS Security Configuration
+## DNS Security Configuration
 
 **Configure Log**
 
@@ -456,7 +531,7 @@ Create Log Directory:
 # chown named:named /var/log/named
 ```
 
-Edit `/etc/named.conf` file in `loggong { }` options like following:
+Edit `/etc/named.conf` file in `loggong { }` options like the following:
 
 ```text
 # vim /etc/named.conf
@@ -480,7 +555,7 @@ logging {
                 print-severity yes;
                 print-category yes;
         };
-		   
+
         category default{
                 normal_log;
         };
@@ -488,7 +563,7 @@ logging {
         category security{
                 security_log;
         };
- 		   
+
 };
 ```
 
@@ -498,7 +573,7 @@ And restart the service and check the log files:
 # service named restart
 ```
 
-### **Securing Zones Transfer:**
+## **Securing Zones Transfer:**
 
 Changed in Primary DNS servers /etc/named.conf file in only zone section like following:
 
@@ -507,14 +582,12 @@ Deny All, Allow Selectively
 ```text
 options {
 ....
-	allow-transfer {none;}; // no transfer by default
+    allow-transfer {none;}; // no transfer by default
 ....
 };
-
 ```
 
 ```text
-
 // Adding forward zone
 
 zone "group-XY.ac.bd" IN {
@@ -538,7 +611,7 @@ zone "1.168.192.in-addr.arpa" IN {
 [root@ns2 ~]# dig bdren.net @IP-of-NS2
 ```
 
-### **Authentication and Integrity of Zone Transfers**
+## **Authentication and Integrity of Zone Transfers**
 
 TSIG Configuration
 
@@ -574,8 +647,8 @@ The preceding information contains four lines. The line beginning with the text 
 
 ```text
 key "transfer-key" {
- 		algorithm hmac-md5;
- 		secret ndu1mcSlVRqGl3Qb35Clqw==;
+         algorithm hmac-md5;
+         secret ndu1mcSlVRqGl3Qb35Clqw==;
 };
 
 server 192.168.0.10 {
@@ -602,15 +675,14 @@ Test Configuration:
 
 ```text
 [root@ns1 keys]# dig @192.168.1.5 group-XY.ac.bd AXFR -k Ktransfer-key.+157+62145.key
-
 ```
 
-#### **Configure in slave server:**
+### **Configure in slave server:**
 
 ```text
 key "transfer-key" {
- 		algorithm hmac-md5;
- 		secret NJSXJmLkg2VCqnEXhp60wQ==;
+         algorithm hmac-md5;
+         secret NJSXJmLkg2VCqnEXhp60wQ==;
 };
 
 
@@ -634,7 +706,6 @@ zone "group-XY.ac.bd" IN {
         masters { 192.168.1.5; };
         file "slaves/slave.group-XY.ac.bd";
 };
-
 ```
 
 ```text
