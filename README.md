@@ -336,7 +336,7 @@ Address: 192.168.1.5
 
 **Change in Primary Server:**
 
-Add the following clause `allow-transfer { 192.168.1.10; };` in the zone 
+Add the following clause `allow-transfer { 192.168.1.10; };` in the zone
 
 ```text
 // Adding forward zone
@@ -357,7 +357,7 @@ zone "1.168.192.in-addr.arpa" IN {
 };
 ```
 
-And add the secondary server information in the db files 
+And add the secondary server information in the db files
 
 ```text
 [root@ns1 named]# vim db.mahedi.me.for
@@ -381,7 +381,7 @@ mahedi.me.      IN  MX    10    mail.mahedi.me.
 www     IN     CNAME     ns1.mahedi.me.
 ftp     IN     A         192.168.1.50
 
- 
+
 
 :x
 ```
@@ -522,7 +522,28 @@ Address: 192.168.1.10
 
 ## DNS Logs Configuration
 
-**Configure Log**
+#### Turn on bind query logging
+
+1. In order to identify clients DNS queries, bind query log needs to enable. For BIND 9, turn on query logging with:
+
+```text
+# rndc querylog
+```
+
+for BIND 8, use the below command to enable query logging:
+
+```text
+# ndc querylog
+```
+
+#### Check in `/var/log/messases`
+
+```text
+Jan 30 18:57:18 localhost named[2316]: received control channel command 'querylog' 
+Jan 30 18:57:18 localhost named[2316]: query logging is now on
+```
+
+#### Enable **different** log permanently in configuration
 
 Create Log Directory:
 
@@ -541,11 +562,17 @@ Edit `/etc/named.conf` file in `loggong { }` options like the following:
 // named.conf fragment
 
 logging {
+        
         channel normal_log {
                 file "/var/log/named/normal.log" versions 3 size 2m;
                 print-time yes;
                 print-severity yes;
                 print-category yes;
+        };
+        
+        channel query_log {
+                file "/var/log/named/query.log" versions 3 size 128m;
+                severity debug 3;
         };
 
         channel security_log { // streamed security log
@@ -556,11 +583,15 @@ logging {
                 print-category yes;
         };
 
-        category default{
+        category default {
                 normal_log;
         };
+        
+        category queries { 
+                 query_log; 
+         };
 
-        category security{
+        category security {
                 security_log;
         };
 
